@@ -143,7 +143,7 @@ enum flags
 
 
 /* Map for errno-related constants
- * 
+ *
  * The provided argument should be a macro that takes 2 arguments.
  */
 #define HTTP_ERRNO_MAP(XX)                                           \
@@ -195,6 +195,15 @@ enum http_errno {
 };
 #undef HTTP_ERRNO_GEN
 
+typedef int (*callback)(http_parser *, const char *, size_t);
+typedef int (*complete_callback)(http_parser *);
+
+typedef struct {
+    http_parser *parser;
+} parser_data;
+
+parser_data *init_http_parser(callback cb, complete_callback ccb, void *conn);
+int parse_data(char *buff, int len, parser_data *ps);
 
 /* Get an http_errno value from an http_parser */
 #define HTTP_PARSER_ERRNO(p)            ((enum http_errno) (p)->http_errno)

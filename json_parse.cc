@@ -3,19 +3,7 @@
 #include <cstdlib>
 #include <list>
 #include "jsmn.h"
-
-#define false 0
-#define true 1
-
-typedef enum {
-    START,
-    ROW_COUNT_TOKEN,
-    ROW_COUNT,
-    ROWS_TOKEN,
-    ROWS_START,
-    ROWS_FINISH,
-    FINISH
-} parser_state_t;
+#include "json_parse.h"
 
 int str2int(const char* str, int len) {
     int i;
@@ -27,43 +15,16 @@ int str2int(const char* str, int len) {
     return ret;
 }
 
-typedef struct {
-    char *buffer;
-    int len;
-} size_buffer;
-
-typedef struct {
-    size_buffer row_data[3];
-} row_t;
-
-typedef enum {
-    ID,
-    KEY,
-    VALUE
-} buffer_type;
-
-struct {
-    const char *data;
-    buffer_type bt;
-} emitted_value[3] = {
-    {"key", KEY},
-    {"id", ID},
-    {"value", VALUE}};
-
-// returns a row from
-void get_row(row_list_t *row_list) {
-
-}
-
-typedef std::list<row_t *> row_list_t;
-
 // add a local queue pointer here to add the row to the queue
-row_t *enque_data(jsmntok_t *t, int len, char *buff, row_list_t &row_list) {
+row_t *enque_data(jsmntok_t *t, int len, char *buff, row_list_t& row_list) {
+    row_list_t back;
     parser_state_t ps = START;
     int row_count, size;
     int i = 0;
     int error = false;
     row_t *rptr = NULL;
+
+    fprintf(stderr, "size of row_list is %d\n", row_list.size());
     for (;i < len; i++) {
         int offset = t[i].start;
         int length = t[i].end - t[i].start;
@@ -81,6 +42,11 @@ row_t *enque_data(jsmntok_t *t, int len, char *buff, row_list_t &row_list) {
             case ROW_COUNT:
                 row_count = str2int(&buff[offset], length);
                 printf("row count is %d", row_count);
+#if 0
+                rptr = new row_t;
+                rptr->sorter_state = SORTER_ROW_COUNT;
+                row_list.push_back(rptr);
+#endif
                 ps = ROWS_TOKEN;
                 break;
             case ROWS_TOKEN:
@@ -130,6 +96,9 @@ row_t *enque_data(jsmntok_t *t, int len, char *buff, row_list_t &row_list) {
                     }
                     row_list.push_back(rptr);
                 }
+                rptr = new row_t;
+                rptr->sorter_state = SORTER_ROW_END;
+                row_list.push_back(rptr);
             case ROWS_FINISH:
             case FINISH:
                 return rptr;
@@ -141,16 +110,16 @@ row_t *enque_data(jsmntok_t *t, int len, char *buff, row_list_t &row_list) {
     }
 }
 
-void parse_data(char *data, int len, row_list_t *row_list) {
+void parse_data_json(char *data, int len, row_list_t& row_list) {
     jsmn_parser p;
-    jsmntok_t t[100];
+    jsmntok_t t[10000];
     row_t *rptr;
 
     jsmn_init(&p);
-    int r = jsmn_parse(&p, data, len, t, 100);
-    enque_data(t, r, buff, *row_list);
+    int r = jsmn_parse(&p, data, len, t, 10000);
+    enque_data(t, r, data, row_list);
+    fprintf(stderr, "size after parse_data_json %d with jsmn error %d \n", row_list.size(), r);
 }
-
 
 char *get_json(char *buff, int len) {
     FILE *fp;
@@ -162,6 +131,7 @@ char *get_json(char *buff, int len) {
     return buff;
 }
 
+#if 0
 int main() {
     jsmn_parser p;
     jsmntok_t t[100];
@@ -187,3 +157,4 @@ int main() {
         }
     }
 }
+#endif
